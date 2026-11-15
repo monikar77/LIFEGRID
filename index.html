@@ -5,8 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LIFEGRID - Global Emergency Network</title>
 
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
-
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
 :root{--navy:#10243b;--blue:#1769aa;--red:#e74747;--green:#15966b;--bg:#f3f6fa}
@@ -33,7 +31,7 @@ nav a:hover{color:#51b5ff}
 .panel h2,.panel h3{color:var(--navy);margin-bottom:16px}
 .section-title{margin-bottom:20px}
 .section-title p{font-size:14px;color:#718096;margin-top:7px}
-#map{height:390px;width:100%;border-radius:10px;z-index:1}
+#map{height:390px;width:100%;border-radius:10px;z-index:1;background:#dfe8f1}
 label{display:block;font-size:13px;font-weight:bold;margin:13px 0 7px}
 input,select,textarea{width:100%;padding:12px;border:1px solid #dce3ec;border-radius:7px;font-size:16px;outline:none;background:white}
 input:focus,select:focus,textarea:focus{border-color:var(--blue)}
@@ -130,7 +128,7 @@ nav a{font-size:11px}
 <section class="panel" id="map-section">
 <h3>🌍 Emergency Incident Map</h3>
 <p style="font-size:13px;color:#718096;margin-bottom:15px">Map showing locations submitted with emergency reports.</p>
-<div id="map"></div>
+<div id="map"><p style="padding:20px;color:#718096;font-size:14px">Loading map...</p></div>
 <p style="font-size:12px;color:#718096;margin-top:12px">Only reports with detected coordinates appear as markers.</p>
 </section>
 
@@ -322,8 +320,6 @@ LIFEGRID is a student project prototype. Submitting a report does not contact an
 <p>Student Project Demonstration | 2026</p>
 </footer>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
-
 <script>
 // DATA STORAGE
 function loadList(key){
@@ -344,25 +340,67 @@ function saveData(){
   }catch(e){}
 }
 
-// MAP
+// MAP LOADER (tries 3 sources one by one)
 let map = null;
 let markerLayer = null;
 
-function initializeMap(){
-  if(typeof L === "undefined"){
-    document.getElementById("map").innerHTML =
-      "<p style='padding:20px'>Map requires an internet connection to load.</p>";
+const leafletSources = [
+  ["https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css","https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"],
+  ["https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css","https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"],
+  ["https://unpkg.com/leaflet@1.9.4/dist/leaflet.css","https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"]
+];
+
+function showMapMessage(text){
+  document.getElementById("map").innerHTML =
+    "<p style='padding:20px;color:#718096;font-size:14px'>"+text+"</p>";
+}
+
+function loadLeaflet(index){
+  if(typeof L !== "undefined"){
+    initializeMap();
     return;
   }
 
+  if(index >= leafletSources.length){
+    showMapMessage("Map could not load. Check your internet connection or disable content blockers, then refresh.");
+    return;
+  }
+
+  let css = document.createElement("link");
+  css.rel = "stylesheet";
+  css.href = leafletSources[index][0];
+  document.head.appendChild(css);
+
+  let script = document.createElement("script");
+  script.src = leafletSources[index][1];
+  script.onload = function(){
+    if(typeof L !== "undefined"){
+      initializeMap();
+    }else{
+      loadLeaflet(index + 1);
+    }
+  };
+  script.onerror = function(){
+    loadLeaflet(index + 1);
+  };
+  document.body.appendChild(script);
+}
+
+function initializeMap(){
+  document.getElementById("map").innerHTML = "";
+
   map = L.map("map").setView([20,0],2);
 
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
+  let tiles = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{
+    maxZoom:19,
     attribution:"&copy; OpenStreetMap contributors"
   }).addTo(map);
 
   markerLayer = L.layerGroup().addTo(map);
   updateMap();
+
+  setTimeout(function(){ map.invalidateSize(); },300);
+  window.addEventListener("resize",function(){ map.invalidateSize(); });
 }
 
 function updateMap(){
@@ -531,52 +569,5 @@ function updateStatus(id,newStatus){
 function deleteIncident(id){
   if(!confirm("Delete this emergency report?")) return;
 
-  incidents = incidents.filter(function(x){ return x.id !== id; });
-  saveData();
-  renderAll();
-}
-
-// VOLUNTEER DISPLAY
-function renderVolunteers(){
-  let list = document.getElementById("volunteerList");
-
-  if(volunteers.length === 0){
-    list.innerHTML = '<div class="empty">No volunteers registered yet.</div>';
-    return;
-  }
-
-  list.innerHTML = volunteers.map(function(person){
-    return `
-<div class="volunteer-item">
-<strong>${escapeHTML(person.name)}</strong>
-<p>${escapeHTML(person.skill)} · ${escapeHTML(person.city)}</p>
-<p>${escapeHTML(person.email)}</p>
-</div>`;
-  }).join("");
-}
-
-// DASHBOARD STATISTICS
-function updateStats(){
-  document.getElementById("totalReports").textContent = incidents.length;
-  document.getElementById("activeReports").textContent =
-    incidents.filter(function(x){ return x.status !== "Resolved"; }).length;
-  document.getElementById("resolvedReports").textContent =
-    incidents.filter(function(x){ return x.status === "Resolved"; }).length;
-  document.getElementById("volunteerCount").textContent = volunteers.length;
-}
-
-function renderAll(){
-  renderIncidents();
-  renderVolunteers();
-  updateStats();
-  updateMap();
-}
-
-// RESOURCE SEARCH
-function searchNearby(type){
-  let query = encodeURIComponent(type);
-  window.open("https://www.google.com/maps/search/" + query,"_blank");
-}
-
-// NAVIGATION
-function
+  incidents = incidents.filter(function(x){ return x.id
+ 
