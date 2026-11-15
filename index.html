@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LIFEGRID - Global Emergency Network</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
+:root{--navy:#10243b;--blue:#1769aa;--red:#e74747;--green:#15966b;--bg:#f3f6fa}
+body{background:var(--bg);color:#243247}
+header{background:var(--navy);color:white;padding:17px 5%;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:15px;position:sticky;top:0;z-index:1000}
+.logo{font-size:26px;font-weight:800;letter-spacing:1px}
+.logo span{color:#51b5ff}
+nav{display:flex;gap:18px;flex-wrap:wrap}
+nav a{color:white;text-decoration:none;font-size:13px}
+nav a:hover{color:#51b5ff}
+.hero{background:linear-gradient(120deg,#10243b,#1769aa);color:white;padding:65px 7%;display:flex;justify-content:space-between;align-items:center;gap:30px;flex-wrap:wrap}
+.hero-content{max-width:650px}
+.hero h1{font-size:clamp(34px,5vw,55px);line-height:1.15;margin-bottom:18px}
+.hero p{line-height:1.8;color:#dceafa}
+.hero-card{background:white;color:var(--navy);padding:25px;border-radius:15px;width:270px;box-shadow:0 10px 30px #0003}
+.hero-card p{color:#718096;font-size:13px;margin:12px 0}
+.container{width:90%;max-width:1250px;margin:35px auto}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:17px;margin-top:-25px;position:relative}
+.stat{background:white;padding:23px;border-radius:12px;box-shadow:0 4px 15px #10243b10}
+.stat p{font-size:13px;color:#718096;margin-bottom:12px}
+.stat h2{font-size:30px;color:var(--navy)}
+.layout{display:grid;grid-template-columns:1.3fr 1fr;gap:22px;margin-top:30px}
+.panel{background:white;padding:23px;border-radius:13px;box-shadow:0 4px 15px #10243b0c;margin-bottom:22px}
+.panel h2,.panel h3{color:var(--navy);margin-bottom:16px}
+.section-title{margin-bottom:20px}
+.section-title p{font-size:14px;color:#718096;margin-top:7px}
+#map{height:390px;width:100%;border-radius:10px;z-index:1}
+label{display:block;font-size:13px;font-weight:bold;margin:13px 0 7px}
+input,select,textarea{width:100%;padding:12px;border:1px solid #dce3ec;border-radius:7px;font-size:16px;outline:none;background:white}
+input:focus,select:focus,textarea:focus{border-color:var(--blue)}
+textarea{resize:vertical;min-height:85px}
+button{border:0;padding:11px 16px;border-radius:7px;font-weight:bold;cursor:pointer;transition:.2s}
+button:hover{opacity:.87;transform:translateY(-1px)}
+.red{background:var(--red);color:white}
+.blue{background:var(--blue);color:white}
+.green{background:var(--green);color:white}
+.light{background:#e8f2fc;color:var(--blue)}
+.full{width:100%;margin-top:13px}
+.location{background:#eef6ff;color:var(--blue);padding:11px;border-radius:7px;font-size:13px;margin-top:12px}
+.incident-list{display:grid;gap:13px}
+.incident{border:1px solid #e5eaf0;border-left:5px solid var(--red);border-radius:9px;padding:16px}
+.incident.medium{border-left-color:#e7a126}
+.incident.low{border-left-color:var(--green)}
+.incident-top{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.incident h4{color:var(--navy)}
+.incident p{font-size:13px;color:#718096;margin-top:7px;line-height:1.5}
+.tag{font-size:11px;padding:5px 9px;border-radius:20px;background:#fff0f0;color:var(--red);font-weight:bold}
+.tag.medium{background:#fff5df;color:#a36b00}
+.tag.low{background:#e5f8ef;color:var(--green)}
+.status{color:var(--blue);font-weight:bold}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.actions button{font-size:12px;padding:8px 11px}
+.filters{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+.filters select{max-width:220px}
+.resource-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:15px}
+.resource{background:white;padding:22px;border-radius:12px;box-shadow:0 4px 15px #10243b0c}
+.resource .emoji{font-size:30px;margin-bottom:12px}
+.resource h3{font-size:16px;margin-bottom:8px;color:var(--navy)}
+.resource p{font-size:13px;line-height:1.6;color:#718096;margin-bottom:13px}
+.volunteer-grid{display:grid;grid-template-columns:1fr 1fr;gap:25px}
+.volunteer-item{padding:12px;border:1px solid #e5eaf0;border-radius:8px;margin-bottom:10px}
+.volunteer-item p{font-size:13px;color:#718096;margin-top:5px}
+.notice{background:#fff8e8;color:#77530d;border:1px solid #f4dfaa;padding:15px;border-radius:9px;font-size:13px;line-height:1.6;margin-top:20px}
+.empty{text-align:center;padding:25px;color:#718096;font-size:14px}
+footer{background:var(--navy);color:white;text-align:center;padding:30px;margin-top:45px;font-size:13px;line-height:1.8}
+footer span{color:#51b5ff}
+@media(max-width:850px){
+.stats{grid-template-columns:repeat(2,1fr)}
+.layout{grid-template-columns:1fr}
+.resource-grid{grid-template-columns:repeat(2,1fr)}
+.volunteer-grid{grid-template-columns:1fr}
+}
+@media(max-width:550px){
+nav{gap:10px}
+nav a{font-size:11px}
+.stats,.resource-grid,.volunteer-grid{grid-template-columns:1fr}
+.hero{padding:45px 6%}
+}
+</style>
+</head>
+
+<body>
+
+<header>
+<div class="logo">LIFE<span>GRID</span></div>
+<nav>
+<a href="#home">Home</a>
+<a href="#map-section">Live Map</a>
+<a href="#report">Report SOS</a>
+<a href="#incidents">Incidents</a>
+<a href="#resources">Resources</a>
+<a href="#volunteer">Volunteer</a>
+</nav>
+</header>
+
+<section class="hero" id="home">
+<div class="hero-content">
+<h1>When every second matters, help should be closer.</h1>
+<p>LIFEGRID is a global emergency response coordination platform designed to connect communities, volunteers and emergency resources. Report incidents, locate assistance and coordinate community support through one connected platform.</p>
+</div>
+
+<div class="hero-card">
+<h3>Need emergency assistance?</h3>
+<p>Submit an emergency report using the LIFEGRID reporting system.</p>
+<button type="button" class="red full" onclick="goTo('report')">🚨 Report Emergency</button>
+<p>For immediate danger, contact your local official emergency services.</p>
+</div>
+</section>
+
+<main class="container">
+
+<section class="stats">
+<div class="stat"><p>Total Reports</p><h2 id="totalReports">0</h2></div>
+<div class="stat"><p>Active Emergencies</p><h2 id="activeReports">0</h2></div>
+<div class="stat"><p>Resolved Reports</p><h2 id="resolvedReports">0</h2></div>
+<div class="stat"><p>Registered Volunteers</p><h2 id="volunteerCount">0</h2></div>
+</section>
+
+<div class="layout">
+
+<section class="panel" id="map-section">
+<h3>🌍 Emergency Incident Map</h3>
+<p style="font-size:13px;color:#718096;margin-bottom:15px">Map showing locations submitted with emergency reports.</p>
+<div id="map"></div>
+<p style="font-size:12px;color:#718096;margin-top:12px">Only reports with detected coordinates appear as markers.</p>
+</section>
+
+<section class="panel" id="report">
+<h3>🚨 Report an Emergency</h3>
+
+<form id="reportForm">
+
+<label for="reporter">Full Name</label>
+<input id="reporter" type="text" name="name" required autocomplete="name" placeholder="Enter your name">
+
+<label for="category">Emergency Category</label>
+<select id="category" required>
+<option value="">Select emergency type</option>
+<option>Flood</option>
+<option>Road Accident</option>
+<option>Medical Emergency</option>
+<option>Fire</option>
+<option>Earthquake</option>
+<option>Missing Person</option>
+<option>Food and Shelter</option>
+<option>Other</option>
+</select>
+
+<label for="priority">Priority Level</label>
+<select id="priority" required>
+<option value="High">High Priority</option>
+<option value="Medium">Medium Priority</option>
+<option value="Low">Low Priority</option>
+</select>
+
+<label for="description">Emergency Description</label>
+<textarea id="description" required placeholder="Describe the emergency and what help is needed"></textarea>
+
+<label for="address">Location / Address</label>
+<input id="address" type="text" required autocomplete="off" placeholder="Enter your location">
+
+<div class="location" id="locationStatus">📍 Location not detected yet.</div>
+
+<button type="button" class="light full" onclick="detectLocation()">📍 Detect My Location</button>
+
+<input type="hidden" id="latitude" autocomplete="off">
+<input type="hidden" id="longitude" autocomplete="off">
+
+<button type="submit" class="red full">Submit Emergency Report</button>
+</form>
+</section>
+</div>
+
+<section class="panel" id="incidents">
+<div class="section-title">
+<h2>Emergency Reports</h2>
+<p>View reports and update their demonstration status.</p>
+</div>
+
+<div class="filters">
+<select id="filterCategory" onchange="renderIncidents()">
+<option value="All">All Categories</option>
+<option>Flood</option>
+<option>Road Accident</option>
+<option>Medical Emergency</option>
+<option>Fire</option>
+<option>Earthquake</option>
+<option>Missing Person</option>
+<option>Food and Shelter</option>
+<option>Other</option>
+</select>
+
+<select id="filterStatus" onchange="renderIncidents()">
+<option value="All">All Statuses</option>
+<option>Reported</option>
+<option>Accepted</option>
+<option>In Progress</option>
+<option>Resolved</option>
+</select>
+</div>
+
+<div class="incident-list" id="incidentList"></div>
+</section>
+
+<section id="resources">
+<div class="section-title">
+<h2>Emergency Resource Directory</h2>
+<p>Search for important emergency resources in your area.</p>
+</div>
+
+<div class="resource-grid">
+
+<div class="resource">
+<div class="emoji">🏥</div>
+<h3>Hospitals</h3>
+<p>Find nearby hospitals and medical facilities.</p>
+<button type="button" class="light" onclick="searchNearby('hospital')">Find Hospitals</button>
+</div>
+
+<div class="resource">
+<div class="emoji">🚒</div>
+<h3>Fire Stations</h3>
+<p>Locate fire stations and fire services.</p>
+<button type="button" class="light" onclick="searchNearby('fire station')">Find Fire Stations</button>
+</div>
+
+<div class="resource">
+<div class="emoji">🏠</div>
+<h3>Emergency Shelters</h3>
+<p>Search for shelters and temporary accommodation.</p>
+<button type="button" class="light" onclick="searchNearby('emergency shelter')">Find Shelters</button>
+</div>
+
+<div class="resource">
+<div class="emoji">🚑</div>
+<h3>Ambulance Services</h3>
+<p>Search for nearby ambulance services.</p>
+<button type="button" class="light" onclick="searchNearby('ambulance service')">Find Ambulances</button>
+</div>
+
+<div class="resource">
+<div class="emoji">💧</div>
+<h3>Food and Water</h3>
+<p>Find food banks, drinking water and relief centres.</p>
+<button type="button" class="light" onclick="searchNearby('food bank water relief centre')">Find Relief Centres</button>
+</div>
+
+<div class="resource">
+<div class="emoji">🛡️</div>
+<h3>Emergency Services</h3>
+<p>Find official emergency service information.</p>
+<button type="button" class="light" onclick="searchNearby('emergency services')">Find Services</button>
+</div>
+
+</div>
+</section>
+
+<section class="panel" id="volunteer" style="margin-top:35px">
+<div class="section-title">
+<h2>🤝 Community Volunteer Network</h2>
+<p>Register your willingness to support your community.</p>
+</div>
+
+<div class="volunteer-grid">
+
+<div>
+<h3>Become a Volunteer</h3>
+<form id="volunteerForm">
+
+<label for="volName">Full Name</label>
+<input id="volName" type="text" required autocomplete="name" placeholder="Your name">
+
+<label for="volEmail">Email Address</label>
+<input type="email" id="volEmail" required autocomplete="email" placeholder="Your email">
+
+<label for="volSkill">Area of Assistance</label>
+<select id="volSkill" required>
+<option value="">Choose an area</option>
+<option>Medical Support</option>
+<option>Food Distribution</option>
+<option>Rescue Support</option>
+<option>Transportation</option>
+<option>Communication</option>
+<option>General Assistance</option>
+</select>
+
+<label for="volCity">City / Area</label>
+<input id="volCity" type="text" required autocomplete="off" placeholder="Enter your city">
+
+<button type="submit" class="green full">Register as Volunteer</button>
+</form>
+</div>
+
+<div>
+<h3>Registered Volunteers</h3>
+<div id="volunteerList"></div>
+</div>
+
+</div>
+</section>
+
+<div class="notice">
+<strong>Important safety information:</strong>
+LIFEGRID is a student project prototype. Submitting a report does not contact an ambulance, police department or rescue team. Location reports and volunteer registrations are stored only in this browser. Always contact official emergency services for real emergencies. Never enter sensitive personal information.
+</div>
+
+</main>
+
+<footer>
+<h2>LIFE<span>GRID</span></h2>
+<p>One Network. Every Emergency. Faster Help.</p>
+<p>Global Emergency Response Coordination Platform</p>
+<p>Student Project Demonstration | 2026</p>
+</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+// DATA STORAGE
+function loadList(key){
+  try{
+    return JSON.parse(localStorage.getItem(key)) || [];
+  }catch(e){
+    return [];
+  }
+}
+
+let incidents = loadList("lifegridIncidents");
+let volunteers = loadList("lifegridVolunteers");
+
+function saveData(){
+  try{
+    localStorage.setItem("lifegridIncidents",JSON.stringify(incidents));
+    localStorage.setItem("lifegridVolunteers",JSON.stringify(volunteers));
+  }catch(e){}
+}
+
+// MAP
+let map = null;
+let markerLayer = null;
+
+function initializeMap(){
+  if(typeof L === "undefined"){
+    document.getElementById("map").innerHTML =
+      "<p style='padding:20px'>Map requires an internet connection to load.</p>";
+    return;
+  }
+
+  map = L.map("map").setView([20,0],2);
+
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
+    attribution:"&copy; OpenStreetMap contributors"
+  }).addTo(map);
+
+  markerLayer = L.layerGroup().addTo(map);
+  updateMap();
+}
+
+function updateMap(){
+  if(!map || !markerLayer) return;
+
+  markerLayer.clearLayers();
+
+  incidents.forEach(function(item){
+    if(item.lat !== null && item.lng !== null){
+      let marker = L.marker([item.lat,item.lng]).addTo(markerLayer);
+
+      marker.bindPopup(
+        "<b>"+escapeHTML(item.category)+"</b><br>"+
+        escapeHTML(item.address)+"<br>"+
+        "Priority: "+escapeHTML(item.priority)+"<br>"+
+        "Status: "+escapeHTML(item.status)
+      );
+    }
+  });
+}
+
+// LOCATION DETECTION
+function detectLocation(){
+  const status = document.getElementById("locationStatus");
+
+  if(!navigator.geolocation){
+    status.textContent = "Location detection is not supported by this browser.";
+    return;
+  }
+
+  status.textContent = "Detecting your location...";
+
+  navigator.geolocation.getCurrentPosition(
+    function(position){
+      let lat = position.coords.latitude;
+      let lng = position.coords.longitude;
+
+      document.getElementById("latitude").value = lat;
+      document.getElementById("longitude").value = lng;
+
+      status.textContent = "📍 Location detected successfully: " + lat.toFixed(5) + ", " + lng.toFixed(5);
+
+      if(map){
+        map.setView([lat,lng],13);
+      }
+    },
+    function(error){
+      let messages = {
+        1:"Location permission denied. Please allow location access.",
+        2:"Location information is unavailable.",
+        3:"Location request timed out."
+      };
+      status.textContent = messages[error.code] || "Could not detect location.";
+    },
+    {enableHighAccuracy:true,timeout:10000}
+  );
+}
+
+// EMERGENCY REPORT FORM
+document.getElementById("reportForm").addEventListener("submit",function(e){
+  e.preventDefault();
+
+  let latValue = document.getElementById("latitude").value;
+  let lngValue = document.getElementById("longitude").value;
+
+  let item = {
+    id:Date.now(),
+    name:document.getElementById("reporter").value.trim(),
+    category:document.getElementById("category").value,
+    priority:document.getElementById("priority").value,
+    description:document.getElementById("description").value.trim(),
+    address:document.getElementById("address").value.trim(),
+    lat: latValue ? Number(latValue) : null,
+    lng: lngValue ? Number(lngValue) : null,
+    status:"Reported",
+    time:new Date().toLocaleString()
+  };
+
+  incidents.unshift(item);
+  saveData();
+  this.reset();
+
+  document.getElementById("latitude").value = "";
+  document.getElementById("longitude").value = "";
+  document.getElementById("locationStatus").textContent = "📍 Location not detected yet.";
+
+  renderAll();
+
+  alert("Emergency report submitted successfully! Report ID: LG-" + item.id);
+  goTo("incidents");
+});
+
+// VOLUNTEER REGISTRATION
+document.getElementById("volunteerForm").addEventListener("submit",function(e){
+  e.preventDefault();
+
+  let person = {
+    id:Date.now(),
+    name:document.getElementById("volName").value.trim(),
+    email:document.getElementById("volEmail").value.trim(),
+    skill:document.getElementById("volSkill").value,
+    city:document.getElementById("volCity").value.trim()
+  };
+
+  volunteers.push(person);
+  saveData();
+  this.reset();
+  renderAll();
+
+  alert("Volunteer registration successful!");
+});
+
+// INCIDENT DISPLAY
+function renderIncidents(){
+  let list = document.getElementById("incidentList");
+  let category = document.getElementById("filterCategory").value;
+  let status = document.getElementById("filterStatus").value;
+
+  let filtered = incidents.filter(function(item){
+    return (category === "All" || item.category === category) &&
+           (status === "All" || item.status === status);
+  });
+
+  if(filtered.length === 0){
+    list.innerHTML = '<div class="empty">No emergency reports found.</div>';
+    return;
+  }
+
+  list.innerHTML = filtered.map(function(item){
+    let p = item.priority.toLowerCase();
+    return `
+<div class="incident ${p}">
+<div class="incident-top">
+<h4>${escapeHTML(item.category)}</h4>
+<span class="tag ${p}">${escapeHTML(item.priority)} Priority</span>
+</div>
+
+<p><b>Report ID:</b> LG-${item.id}</p>
+<p><b>Reported by:</b> ${escapeHTML(item.name)}</p>
+<p><b>Location:</b> ${escapeHTML(item.address)}</p>
+<p><b>Description:</b> ${escapeHTML(item.description)}</p>
+<p><b>Time:</b> ${escapeHTML(item.time)}</p>
+<p>Status: <span class="status">${escapeHTML(item.status)}</span></p>
+
+<div class="actions">
+<button type="button" class="blue" onclick="updateStatus(${item.id},'Accepted')">Accept</button>
+<button type="button" class="light" onclick="updateStatus(${item.id},'In Progress')">In Progress</button>
+<button type="button" class="green" onclick="updateStatus(${item.id},'Resolved')">Resolve</button>
+<button type="button" class="red" onclick="deleteIncident(${item.id})">Delete</button>
+</div>
+</div>`;
+  }).join("");
+}
+
+// STATUS UPDATE
+function updateStatus(id,newStatus){
+  let item = incidents.find(function(x){ return x.id === id; });
+  if(!item) return;
+
+  item.status = newStatus;
+  saveData();
+  renderAll();
+}
+
+// DELETE REPORT
+function deleteIncident(id){
+  if(!confirm("Delete this emergency report?")) return;
+
+  incidents = incidents.filter(function(x){ return x.id !== id; });
+  saveData();
+  renderAll();
+}
+
+// VOLUNTEER DISPLAY
+function renderVolunteers(){
+  let list = document.getElementById("volunteerList");
+
+  if(volunteers.length === 0){
+    list.innerHTML = '<div class="empty">No volunteers registered yet.</div>';
+    return;
+  }
+
+  list.innerHTML = volunteers.map(function(person){
+    return `
+<div class="volunteer-item">
+<strong>${escapeHTML(person.name)}</strong>
+<p>${escapeHTML(person.skill)} · ${escapeHTML(person.city)}</p>
+<p>${escapeHTML(person.email)}</p>
+</div>`;
+  }).join("");
+}
+
+// DASHBOARD STATISTICS
+function updateStats(){
+  document.getElementById("totalReports").textContent = incidents.length;
+  document.getElementById("activeReports").textContent =
+    incidents.filter(function(x){ return x.status !== "Resolved"; }).length;
+  document.getElementById("resolvedReports").textContent =
+    incidents.filter(function(x){ return x.status === "Resolved"; }).length;
+  document.getElementById("volunteerCount").textContent = volunteers.length;
+}
+
+function renderAll(){
+  renderIncidents();
+  renderVolunteers();
+  updateStats();
+  updateMap();
+}
+
+// RESOURCE SEARCH
+function searchNearby(type){
+  let query = encodeURIComponent(type);
+  window.open("https://www.google.com/maps/search/" + query,"_blank");
+}
+
+// NAVIGATION
+function
